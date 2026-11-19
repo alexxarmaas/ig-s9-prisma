@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PRISMA · Caleidoscopio generativo</title>
+<style>
+:root{color-scheme:dark;--teal:#4be3ce;--gold:#edae72;--fg:#e8eef8}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#070d20;color:var(--fg);font:14px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+main{min-height:100vh;display:grid;grid-template-columns:minmax(320px,1fr) minmax(250px,370px);gap:clamp(24px,4vw,72px);align-items:center;padding:clamp(22px,5vw,75px);max-width:1450px;margin:auto}
+.stage{position:relative;aspect-ratio:1;max-height:83vh;box-shadow:0 24px 95px #0009,0 0 110px #12b8bb17;border:1px solid #85d9df33;border-radius:26px;overflow:hidden;background:#080b1d}
+canvas{display:block;width:100%;height:100%}.stage:after{position:absolute;content:"";inset:0;pointer-events:none;border:1px solid #ffffff15;border-radius:26px}
+.kicker{font-size:12px;letter-spacing:.25em;color:var(--gold);font-weight:700}.name{font-weight:850;line-height:.9;font-size:clamp(62px,8vw,116px);letter-spacing:-.075em;margin:14px 0}.name span{color:var(--teal)}
+h2{font-size:23px;font-weight:500;line-height:1.3;letter-spacing:-.025em;color:#b9c8dc;margin:15px 0 28px}.copy{color:#8ba3bc;max-width:340px}.rule{height:1px;background:#25334a;margin:34px 0 24px}
+.stats{display:flex;gap:26px;flex-wrap:wrap}.stat strong{display:block;font-size:23px}.stat small{color:#8ba3bc;letter-spacing:.08em;font-size:10px;text-transform:uppercase}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:30px 0}button{background:#12343e;border:1px solid #357a7c;color:#cbfaf4;padding:11px 16px;border-radius:11px;cursor:pointer;font:inherit}button:hover{background:#17515a}button.secondary{color:#c0cddd;background:#152238;border-color:#35465e}
+.speed{display:flex;align-items:center;gap:12px;color:#a8bacf;font-size:12px}.speed input{accent-color:var(--teal);width:160px}#error{white-space:pre-wrap;color:#ffaca7}footer{color:#667d97;font-size:12px;margin-top:30px}
+@media(max-width:850px){main{grid-template-columns:1fr;gap:26px}.stage{max-height:none;width:100%}.details{max-width:620px}.name{font-size:65px}.rule{margin:18px 0}}
+@media(prefers-reduced-motion:reduce){.stage{transition:none}}
+</style>
+</head>
+<body><main>
+<div class="stage"><canvas id="c" aria-label="Shader caleidoscópico animado"></canvas></div>
+<section class="details"><div class="kicker">INFORMÁTICA GRÁFICA · S9 / SHADERS</div>
+<h1 class="name">PRIS<span>MA</span></h1><h2>Un caleidoscopio de cristal<br>generado enteramente con matemáticas.</h2>
+<p class="copy">Doce espejos angulares, pétalos ondulantes y ribetes dorados se combinan píxel a píxel en la GPU. Sin imágenes, sin modelos 3D y sin texturas.</p>
+<div class="rule"></div><div class="stats"><div class="stat"><strong>12</strong><small>sectores</small></div><div class="stat"><strong>511 B</strong><small>shader compacto</small></div><div class="stat"><strong>GLSL</strong><small>ES 1.00</small></div></div>
+<div class="actions"><button id="toggle">⏸ Pausar</button><button id="reset" class="secondary">↺ Reiniciar</button><button id="full" class="secondary">⛶ Pantalla completa</button></div>
+<label class="speed">VELOCIDAD <input type="range" id="speed" min="0" max="2" value="1" step="0.05"><output id="speedLabel">1,00×</output></label>
+<p id="error"></p><footer>Práctica S9 · Fragment Shader · The Book of Shaders compatible</footer></section></main>
+<script>
+const fs="precision mediump float;uniform vec2 u_resolution;uniform float u_time;void main(){vec2 p=(gl_FragCoord.xy-.5*u_resolution)/min(u_resolution.x,u_resolution.y);float r=length(p),a=atan(p.y,p.x)+u_time/12.,s=3.14159/6.;a=abs(mod(a,s)-s*.5);vec2 q=r*vec2(cos(a),sin(a));float b=sin(32.*q.x+9.*cos(18.*q.y-u_time));float d=abs(sin(40.*q.y-20.*r+u_time*.5));float v=1.-smoothstep(.12,.27,abs(b));vec3 c=mix(vec3(.01,.03,.1),vec3(.08,.8,.75),smoothstep(-.7,.9,b));gl_FragColor=vec4(c+vec3(1.,.5,.2)*v*(.4+.6*d),1.);}\n";
+const vs='attribute vec2 a_position;void main(){gl_Position=vec4(a_position,0.,1.);}';
+const canvas=document.getElementById('c'),error=document.getElementById('error');
+const gl=canvas.getContext('webgl',{antialias:false,alpha:false});
+if(!gl){error.textContent='WebGL no está disponible en este navegador.';}else{
+function makeShader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
+try{
+ const pr=gl.createProgram();gl.attachShader(pr,makeShader(gl.VERTEX_SHADER,vs));gl.attachShader(pr,makeShader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);if(!gl.getProgramParameter(pr,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(pr));gl.useProgram(pr);
+ const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+ const loc=gl.getAttribLocation(pr,'a_position');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+ const ures=gl.getUniformLocation(pr,'u_resolution'),utime=gl.getUniformLocation(pr,'u_time');
+ let running=!matchMedia('(prefers-reduced-motion: reduce)').matches,elapsed=0,last=0,speed=1;
+ const toggle=document.getElementById('toggle');
+ function refresh(){toggle.textContent=running?'⏸ Pausar':'▶ Reproducir';}
+ refresh();toggle.addEventListener('click',()=>{running=!running;refresh();});
+ document.getElementById('reset').addEventListener('click',()=>{elapsed=0;});
+ document.getElementById('full').addEventListener('click',()=>{if(!document.fullscreenElement)canvas.parentElement.requestFullscreen?.();else document.exitFullscreen?.();});
+ document.getElementById('speed').addEventListener('input',e=>{speed=Number(e.target.value);document.getElementById('speedLabel').textContent=speed.toFixed(2).replace('.',',')+'×';});
+ function render(ts){if(last&&running)elapsed+=(ts-last)*.001*speed;last=ts;const dpr=Math.min(devicePixelRatio||1,2);const rect=canvas.getBoundingClientRect();const w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}gl.uniform2f(ures,w,h);gl.uniform1f(utime,elapsed);gl.drawArrays(gl.TRIANGLES,0,6);requestAnimationFrame(render);}
+ requestAnimationFrame(render);
+}catch(e){error.textContent='Error al compilar WebGL: '+e.message;console.error(e);}
+}
+</script></body></html>
